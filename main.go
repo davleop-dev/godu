@@ -13,6 +13,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 /*
@@ -69,9 +70,9 @@ var rootCmd = &cobra.Command{
 			//needs to have logic for setting input file
 			fmt.Println(f)
 		}
-		e := extendedFlag
-		if e {
-			fmt.Println("Needs implementation of extended information output")
+		e, ne := extendedFlag, noExtendedFlag
+		if e && ne{
+			e = false
 		}
 		ic := icFlag
 		if ic {
@@ -82,13 +83,13 @@ var rootCmd = &cobra.Command{
 			fmt.Println("Needs implementation of filesystem boundaries")
 		}
 		c := cfsFlag
-		if c {
-			fmt.Println("Needs implementation of filesystem boundaries")
+		if c && x{
+			x = false
 		}
 		ex := exclude
 		if len(ex) != 0 {
 			for i := 0; i < len(ex); i++ {
-				fmt.Println(ex[i])
+				fmt.Println("excluding", ex[i])
 			}
 		}
 		bX := bigXFlag
@@ -120,9 +121,8 @@ var (
 	xFlag              bool
 	icFlag             bool
 	extendedFlag       bool
-	longNoExtendedFlag bool
+	noExtendedFlag bool
 	versionFlag        bool
-	longVersionFlag    bool
 	inputFile          string
 	outputFlag         string
 	outputFile         io.Writer
@@ -182,7 +182,7 @@ func init() {
 	flags.StringVarP(&inputFile, "input-file", "f", "", "-f [FILE] defines file for data input")
 	flags.BoolVarP(&versionFlag, "version", "v", false, "-v shows the current version of godu")
 	flags.BoolVarP(&extendedFlag, "extended", "e", false, "-e enables extended information mode")
-	flags.BoolVar(&longNoExtendedFlag, "no-extended", false, "disables extended information mode")
+	flags.BoolVar(&noExtendedFlag, "no-extended", false, "disables extended information mode")
 	flags.BoolVar(&icFlag, "ignore-config", false, "--ignore-config prevents godu from attempting to load any configuration files")
 	flags.BoolVarP(&xFlag, "one-file-system", "x", false, "-x prevents godu from crossing filesystem boundaries, i.e. only count files and directories on the same filesystem as the directory being scanned")
 	flags.BoolVar(&cfsFlag, "cross-file-system", false, "--cross-file-system allows godu to cross filesystem boundaries. This is the default, but can be specified to overrule a previously given '-x'")
@@ -228,6 +228,12 @@ func init() {
 	flags.BoolVar(&cqFlag, "confirm-quit", true, "Require a confirmation before quitting ncdu. Very helpful when you accidentally press 'q' during or after a very long scan.")
 	flags.BoolVar(&cdFlag, "confirm-delete", true, "Require a confirmation before deleting a file or directory. Enabled by default, but can be disabled if you're absolutely sure you won't accidentally press 'd'.")
 	flags.StringVar(&colorFlag, "color", "", "color [SCHEME]: Select a color scheme. The following schemes are recognized: off to disable colors, dark for a color scheme intended for dark backgrounds and dark-bg for a variation of the dark color scheme that also works in terminals with a light background. The default is dark-bg unless the NO_COLOR environment variable is set.")
+}
+
+func aliasNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName{
+	switch name{
+		case ""
+	}
 }
 
 func main() {
