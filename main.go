@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"log"
@@ -91,12 +92,20 @@ var rootCmd = &cobra.Command{
 			}
 		}
 		bX := bigXFlag
+		XArr := []string{}
 		if bX != "" {
-			fmt.Println("Needs implementation of Exclusion Files")
+			file, err := os.Open(bX)
+			if err != nil {
+				log.Fatal(err)
+			}
+			reader := bufio.NewScanner(file)
+			for reader.Scan() {
+				XArr = append(XArr, reader.Text())
+			}
 		}
-		sym := symLinkFlag
-		if sym {
-			fmt.Println("Needs implementation of symLink following")
+		sym, noSym := symLinkFlag, noSymLinkFlag
+		if sym && noSym {
+			sym = false
 		}
 	},
 }
