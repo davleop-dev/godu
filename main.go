@@ -103,21 +103,26 @@ var rootCmd = &cobra.Command{
 
 var (
 	//Scan and mode selection options
-	symLinkFlag  bool
-	bigXFlag     string
-	exclude      []string
-	cfsFlag      bool
-	xFlag        bool
-	icFlag       bool
-	extendedFlag bool
-	versionFlag  bool
-	inputFile    string
-	outputFlag   string
-	outputFile   io.Writer
-	logFlag      string
-	logFile      *os.File
-	err          error
-	dir          string
+	symLinkFlag        bool
+	noSymLinkFlag      bool
+	bigXFlag           string
+	exclude            []string
+	cfsFlag            bool
+	xFlag              bool
+	icFlag             bool
+	extendedFlag       bool
+	longNoExtendedFlag bool
+	versionFlag        bool
+	longVersionFlag    bool
+	inputFile          string
+	outputFlag         string
+	outputFile         io.Writer
+	logFlag            string
+	logFile            *os.File
+	err                error
+	dir                string
+	kernFlag           bool
+	exKernFlag         bool
 	//interface options
 	zeroFlag     bool
 	oneFlag      bool
@@ -133,16 +138,24 @@ var (
 	dRefreshFlag bool
 	rFlag        bool
 	siFlag       bool
+	noSiFlag     bool
 	duFlag       bool
+	apFlag       bool
 	shFlag       bool
+	hhFlag       bool
 	sicFlag      bool
+	hicFlag      bool
 	smtFlag      bool
+	hmtFlag      bool
 	sgFlag       bool
+	hgFlag       bool
 	spFlag       bool
+	hpFlag       bool
 	gStyleFlag   string
 	sColumnFlag  string
 	sortFlag     string
 	gdFlag       bool
+	ngdFlag      bool
 	cqFlag       bool
 	cdFlag       bool
 	colorFlag    string
@@ -160,13 +173,16 @@ func init() {
 	flags.StringVarP(&inputFile, "input-file", "f", "", "-f [FILE] defines file for data input")
 	flags.BoolVarP(&versionFlag, "version", "v", false, "-v shows the current version of godu")
 	flags.BoolVarP(&extendedFlag, "extended", "e", false, "-e enables extended information mode")
+	flags.BoolVar(&longNoExtendedFlag, "no-extended", false, "disables extended information mode")
 	flags.BoolVar(&icFlag, "ignore-config", false, "--ignore-config prevents godu from attempting to load any configuration files")
 	flags.BoolVarP(&xFlag, "one-file-system", "x", false, "-x prevents godu from crossing filesystem boundaries, i.e. only count files and directories on the same filesystem as the directory being scanned")
 	flags.BoolVar(&cfsFlag, "cross-file-system", false, "--cross-file-system allows godu to cross filesystem boundaries. This is the default, but can be specified to overrule a previously given '-x'")
 	flags.StringArrayVar(&exclude, "exclude", exclude, "--exclude [PATTERN] excludes files that match PATTERN. The files will still be displayed by default, but are not counted towards the disk usage statistics. This argument can be added multiple times to add more patterns.")
 	flags.StringVarP(&bigXFlag, "exclude-from", "X", "", "-X [FILE], --exclude-from [FILE] Exclude files that match any pattern in FILE. Patterns should be separated by a newline.")
 	flags.BoolVarP(&symLinkFlag, "follow-symlinks", "L", false, "-L, --follow-symlinks follows symlinks and counts the size of the file they point to.")
-
+	flags.BoolVar(&noSymLinkFlag, "no-follow-symlinks", false, "does not follow symbolic links")
+	flags.BoolVar(&kernFlag, "include-kernfs", false, "(Linux only) Include (default) Linux pseudo filesystems, e.g. /proc (procfs), /sys (sysfs). The complete list of currently known pseudo filesystems is: binfmt, bpf, cgroup, cgroup2, debug, devpts, proc, pstore, security, selinux, sys, trace.")
+	flags.BoolVar(&exKernFlag, "exclude-kernfs", false, "(Linux only) Exclude Linux pseudo filesystems, e.g. /proc (procfs), /sys (sysfs). The complete list of currently known pseudo filesystems is: binfmt, bpf, cgroup, cgroup2, debug, devpts, proc, pstore, security, selinux, sys, trace.")
 	//interface option flags
 	flags.BoolVar(&zeroFlag, "0", true, "Don't give any feedback while scanning a directory or importing a file, other than when a fatal error occurs. This option is the default when exporting to standard output.")
 	flags.BoolVar(&oneFlag, "1", false, "Similar to -0, but does give feedback on the scanning progress with a single line of output. This option is the default when exporting to a file.")
@@ -182,20 +198,27 @@ func init() {
 	flags.BoolVar(&dRefreshFlag, "disable-refresh", false, "Disable directory refreshing from the browser. This feature is enabled by default when scanning a live directory and disabled when importing from file.")
 	flags.BoolVar(&rFlag, "r", false, "Read-only mode. When given once, this is an alias for --disable-delete, when given twice it will also add --disable-shell, thus ensuring that there is no way to modify the file system from within godu.")
 	flags.BoolVar(&siFlag, "si", false, "List sizes using base 10 prefixes, that is, powers of 1000 (KB, MB, etc), as defined in the International System of Units (SI), instead of the usual base 2 prefixes, that is, powers of 1024 (KiB, MiB, etc).")
-	flags.BoolVar(&duFlag, "disk-usage", false, "Select whether to display disk usage (default) or apparent sizes. Can also be toggled in the browser with the 'a' key.")
-	flags.BoolVar(&shFlag, "show-hidden", true, "Show (default) or hide 'hidden' and excluded files. Can also be toggled in the browser with the 'e' key.")
-	flags.BoolVar(&sicFlag, "show-itemcount", false, "Show or hide (default) the item counts column. Can also be toggled in the browser with the 'c' key.")
-	flags.BoolVar(&smtFlag, "show-mtime", false, "Show or hide (default) the last modification time column. Can also be toggled in the browser with the 'm' key. This option is ignored when not in extended mode (see -e).")
-	flags.BoolVar(&sgFlag, "show-graph", true, "Show (default) or hide the relative size bar column. Can also be toggled in the browser with the 'g' key.")
-	flags.BoolVar(&spFlag, "show-percent", true, "Show (default) or hide the relative size percent column. Can also be toggled in the browser with the 'g' key.")
+	flags.BoolVar(&noSiFlag, "no-si", false, "List sizes using the usual base 2 prefixes, that is, powers of 1024 (KiB, MiB, etc).")
+	flags.BoolVar(&duFlag, "disk-usage", true, "Display disk usage (default). Can also be toggled to apparent size in the browser with the 'a' key.")
+	flags.BoolVar(&apFlag, "apparent-size", false, "Display apparent sizes. Can also be toggled to disk usage in the browser with the 'a' key.")
+	flags.BoolVar(&shFlag, "show-hidden", true, "Show (default) 'hidden' and excluded files. Can also be toggled in the browser with the 'e' key.")
+	flags.BoolVar(&hhFlag, "hide-hidden", false, "Hide 'hidden' and excluded files. Can also be toggled in the browser with the 'e' key.")
+	flags.BoolVar(&sicFlag, "show-itemcount", false, "Show the item counts column. Can also be toggled in the browser with the 'c' key.")
+	flags.BoolVar(&hicFlag, "hide-itemcount", true, "Hide (default) the item counts column. Can also be toggled in the browser with the 'c' key.")
+	flags.BoolVar(&smtFlag, "show-mtime", false, "Show the last modification time column. Can also be toggled in the browser with the 'm' key. This option is ignored when not in extended mode (see -e).")
+	flags.BoolVar(&hmtFlag, "hide-mtime", true, "Hide (default) the last modification time column. Can also be toggled in the browser with the 'm' key. This option is ignored when not in extended mode (see -e).")
+	flags.BoolVar(&sgFlag, "show-graph", true, "Show (default) the relative size bar column. Can also be toggled in the browser with the 'g' key.")
+	flags.BoolVar(&hgFlag, "hide-graph", false, "Hide the relative size bar column. Can also be toggled in the browser with the 'g' key.")
+	flags.BoolVar(&spFlag, "show-percent", true, "Show (default) the relative size percent column. Can also be toggled in the browser with the 'g' key.")
+	flags.BoolVar(&hpFlag, "hide-percent", false, "Hide the relative size percent column. Can also be toggled in the browser with the 'g' key.")
 	flags.StringVar(&gStyleFlag, "graph-style", "", "graph-style [OPTION]: Change the way that the relative size bar column is drawn. Recognized values are hash to draw ASCII # characters (default and most portable), half-block to use half-block drawing characters or eighth-block to use eighth-block drawing characters. Eighth-block characters are the most precise but may not render correctly in all terminals.")
 	flags.StringVar(&sColumnFlag, "shared-column", "shared", "shared-column [OPTION]: Set to off to disable the shared size column for directories, shared (default) to display shared directory sizes as a separate column or unique to display unique directory sizes as a separate column. These options can also be cycled through in the browser with the 'u' key.")
 	flags.StringVar(&sortFlag, "sort", "disk-usage", "sort [COLUMN]: Change the default column to sort on. Accepted values are disk-usage (the default), name, apparent-size, itemcount or mtime. The latter only makes sense in extended mode, see -e. The column can be suffixed with -asc or -desc to set the order to ascending or descending, respectively. e.g. --sort=name-desc will sort by name in descending order.")
-	flags.BoolVar(&gdFlag, "group-directories-first", false, "Sort (or not) directories before files.")
+	flags.BoolVar(&gdFlag, "group-directories-first", true, "Sort (default) directories before files.")
+	flags.BoolVar(&ngdFlag, "no-group-directories-first", false, "Don't sort directories before files.")
 	flags.BoolVar(&cqFlag, "confirm-quit", true, "Require a confirmation before quitting ncdu. Very helpful when you accidentally press 'q' during or after a very long scan.")
 	flags.BoolVar(&cdFlag, "confirm-delete", true, "Require a confirmation before deleting a file or directory. Enabled by default, but can be disabled if you're absolutely sure you won't accidentally press 'd'.")
 	flags.StringVar(&colorFlag, "color", "", "color [SCHEME]: Select a color scheme. The following schemes are recognized: off to disable colors, dark for a color scheme intended for dark backgrounds and dark-bg for a variation of the dark color scheme that also works in terminals with a light background. The default is dark-bg unless the NO_COLOR environment variable is set.")
-
 }
 
 func main() {
