@@ -141,6 +141,22 @@ func init() {
 
 }
 
+func crappyCalculation(files []du.File) (map[string]int64, int64) {
+	drsz := make(map[string]int64)
+	totalSz := int64(0)
+
+	for _, file := range files {
+		if _, ok := drsz[file.HighDir]; ok {
+			drsz[file.HighDir] += file.Size
+		} else {
+			drsz[file.HighDir] = file.Size
+		}
+		totalSz += file.Size
+	}
+
+	return drsz, totalSz
+}
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
@@ -151,10 +167,12 @@ func main() {
 	directoryFirst := false
 	desc := true
 
-	files, sizes, err := du.ListFilesRecursivelyInParallel(dir)
+	files, err := du.ListFilesRecursivelyInParallel(dir)
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	drsz, totsz := crappyCalculation(files)
 
 	initialModel := tui.Model{
 		CurrentDirectory: dir,
@@ -163,7 +181,8 @@ func main() {
 		Descending:       desc,
 		DirectoryFirst:   directoryFirst,
 		Files:            files,
-		Sizes:            sizes,
+		DirSz:            drsz,
+		TotalSz:          totsz,
 		Version:          godu_version,
 	}
 

@@ -98,9 +98,10 @@ type Model struct {
 	// This section is for maintaining the `du` content
 	CurrentDirectory   string
 	Files              []File
-	Sizes              []DirSz
 	currentDirectories []File
 	currentFiles       []File
+	DirSz              map[string]int64
+	TotalSz            int64
 
 	// other options
 	ListOrder      Order
@@ -130,6 +131,8 @@ func (m Model) updateCurrentFiles(newDir string) []list.Item {
 		}
 	}
 
+	// Calculate usage of currently displayed items
+
 	// TODO(david): there's probably a prettier way to do this, but it'll  work
 	if !m.DirectoryFirst {
 		m.currentFiles = append(m.currentFiles, m.currentDirectories...)
@@ -148,7 +151,7 @@ func (m Model) updateCurrentFiles(newDir string) []list.Item {
 		fileCount := len(m.currentFiles)
 		items := make([]list.Item, fileCount)
 		for i := 0; i < fileCount; i++ {
-			title := formatItemTitle(m.currentFiles[i])
+			title := m.formatItemTitle(m.currentFiles[i])
 			items[i] = item{title: title}
 		}
 		return items
@@ -177,24 +180,24 @@ func (m Model) updateCurrentFiles(newDir string) []list.Item {
 
 		if m.DirectoryFirst {
 			for i := 0; i < directoryCount; i++ {
-				title := formatItemTitle(m.currentDirectories[i])
+				title := m.formatItemTitle(m.currentDirectories[i])
 				items[i] = item{title: title}
 			}
 			j := 0
 			for i := directoryCount; i < totalCount; i++ {
-				title := formatItemTitle(m.currentFiles[j])
+				title := m.formatItemTitle(m.currentFiles[j])
 				items[i] = item{title: title}
 				j++
 			}
 			return items
 		} else {
 			for i := 0; i < fileCount; i++ {
-				title := formatItemTitle(m.currentFiles[i])
+				title := m.formatItemTitle(m.currentFiles[i])
 				items[i] = item{title: title}
 			}
 			j := 0
 			for i := fileCount; i < totalCount; i++ {
-				title := formatItemTitle(m.currentDirectories[j])
+				title := m.formatItemTitle(m.currentDirectories[j])
 				items[i] = item{title: title}
 				j++
 			}
@@ -204,13 +207,20 @@ func (m Model) updateCurrentFiles(newDir string) []list.Item {
 
 }
 
-func formatItemTitle(file File) string {
+func (m Model) formatItemTitle(file File) string {
 	// this should formatted eventually as so:
 	// F SSS.S UUU [BBBBBBBBB] filename -->
 	// TODO(david): calculate sizes later
 	prog := progress.New(progress.WithScaledGradient("#00FF00", "#FF0000"))
 	prog.Width = 11
-	n := 0.75
+	n := 0.0
+	humanSize := file.HumanSize
+	if file.IsDir {
+		n = float64(m.DirSz[file.HighDir]) / float64(m.TotalSz)
+		humanSize = PrettyPrintSize(m.DirSz[file.HighDir])
+	} else {
+		n = float64(file.Size) / float64(m.TotalSz)
+	}
 	graph := prog.ViewAs(n)
 
 	// setting `F` here
@@ -222,7 +232,7 @@ func formatItemTitle(file File) string {
 		mode = " "
 	}
 
-	return fmt.Sprintf("%-2s %8s %-9s   %s", mode, file.HumanSize, graph, file.Name)
+	return fmt.Sprintf("%-2s %8s %-9s   %s", mode, humanSize, graph, file.Name)
 }
 
 func NewModel(m Model) Model {
@@ -237,7 +247,7 @@ func NewModel(m Model) Model {
 	delegate := newItemDelegate(delegateKeys)
 	delegate.ShowDescription = false
 	currentFiles := list.New(items, delegate, 0, 0)
-	title := fmt.Sprintf("godu-%s | %s", m.Version, m.CurrentDirectory)
+	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.TotalSz), m.CurrentDirectory)
 	currentFiles.Title = title
 	currentFiles.Styles.Title = titleStyle
 	currentFiles.AdditionalFullHelpKeys = func() []key.Binding {

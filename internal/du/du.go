@@ -39,12 +39,7 @@ func (a TimeSorter) Len() int           { return len(a) }
 func (a TimeSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a TimeSorter) Less(i, j int) bool { return a[i].ModTime.Before(a[j].ModTime) }
 
-type DirSz struct {
-	Dir string
-	Sz  int64
-}
-
-func prettyPrintSize(size int64) string {
+func PrettyPrintSize(size int64) string {
 	switch {
 	case size > 1024*1024*1024:
 		return fmt.Sprintf("%.1fG", float64(size)/(1024*1024*1024))
@@ -60,7 +55,7 @@ func prettyPrintSize(size int64) string {
 // TODO(david): properly handle errors
 
 // ListFilesRecursivelyInParallel uses goroutines to list all the files
-func ListFilesRecursivelyInParallel(dir string) (files []File, sizes []DirSz, err error) {
+func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
 	dir = filepath.Clean(dir)
 	f, err := os.Open(dir)
 	if err != nil {
@@ -72,12 +67,11 @@ func ListFilesRecursivelyInParallel(dir string) (files []File, sizes []DirSz, er
 	}
 	files = []File{
 		{
-			Path:    dir,
-			HighDir: dir,
-			Name:    dir,
-			Size:    info.Size(),
-			//HumanSize: bytesize.New(float64(info.Size())),
-			HumanSize: prettyPrintSize(info.Size()),
+			Path:      dir,
+			HighDir:   dir,
+			Name:      dir,
+			Size:      info.Size(),
+			HumanSize: PrettyPrintSize(info.Size()),
 			Mode:      info.Mode(),
 			ModTime:   info.ModTime(),
 			IsDir:     info.IsDir(),
@@ -95,16 +89,13 @@ func ListFilesRecursivelyInParallel(dir string) (files []File, sizes []DirSz, er
 
 	fileChan := make(chan File)
 	startedDirectories := make(chan bool)
-	sz := make(chan DirSz)
-	go listFilesInParallel(dir, startedDirectories, fileChan, sz)
+	go listFilesInParallel(dir, startedDirectories, fileChan)
 
 	runningCount := 1
 	for {
 		select {
 		case file := <-fileChan:
 			files = append(files, file)
-		case size := <-sz:
-			sizes = append(sizes, size)
 		case newDir := <-startedDirectories:
 			if newDir {
 				runningCount++
@@ -120,22 +111,21 @@ func ListFilesRecursivelyInParallel(dir string) (files []File, sizes []DirSz, er
 	return
 }
 
-func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan File, sz chan DirSz) {
+func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan File) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
 	// maybe create chan here and calculate size here
-	apparentSize := int64(0)
+	//apparentSize := int64(0)
 	for _, f := range files {
-		apparentSize += f.Size()
+		//apparentSize += f.Size()
 		fileStruct := File{
-			Path:    path.Join(dir, f.Name()),
-			HighDir: dir,
-			Name:    f.Name(),
-			Size:    f.Size(),
-			//HumanSize: bytesize.New(float64(f.Size())),
-			HumanSize: prettyPrintSize(f.Size()),
+			Path:      path.Join(dir, f.Name()),
+			HighDir:   dir,
+			Name:      f.Name(),
+			Size:      f.Size(),
+			HumanSize: PrettyPrintSize(f.Size()),
 			Mode:      f.Mode(),
 			ModTime:   f.ModTime(),
 			IsDir:     f.IsDir(),
@@ -150,10 +140,9 @@ func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan
 		fileChan <- fileStruct
 		if f.IsDir() {
 			startedDirectories <- true
-			go listFilesInParallel(path.Join(dir, f.Name()), startedDirectories, fileChan, sz)
+			go listFilesInParallel(path.Join(dir, f.Name()), startedDirectories, fileChan)
 		}
 	}
 	startedDirectories <- false
-	sz <- DirSz{Dir: dir, Sz: apparentSize}
 	return
 }
