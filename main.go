@@ -69,21 +69,17 @@ var rootCmd = &cobra.Command{
 			//needs to have logic for setting input file
 			fmt.Println(f)
 		}
-		e, ne := extendedFlag, noExtendedFlag
-		if e && ne {
-			e = false
+		if extendedFlag && noExtendedFlag {
+			extendedFlag = false
 		}
-		ic := icFlag
-		if ic {
+		if icFlag {
 			fmt.Println("Needs implementation of ignore configuration")
 		}
-		x := xFlag
-		if x {
+		if xFlag {
 			fmt.Println("Needs implementation of filesystem boundaries")
 		}
-		c := cfsFlag
-		if c && x {
-			x = false
+		if cfsFlag && xFlag {
+			xFlag = false
 		}
 		ex := exclude
 		if len(ex) != 0 {
@@ -103,13 +99,11 @@ var rootCmd = &cobra.Command{
 				XArr = append(XArr, reader.Text())
 			}
 		}
-		sym, noSym := symLinkFlag, noSymLinkFlag
-		if sym && noSym {
-			sym = false
+		if symLinkFlag && noSymLinkFlag {
+			symLinkFlag = false
 		}
-		k, ek := kernFlag, exKernFlag
-		if k && ek {
-			k = false
+		if kernFlag && exKernFlag {
+			kernFlag = false
 		}
 		zero, one, two := zeroFlag, oneFlag, twoFlag
 		if two {
@@ -118,6 +112,44 @@ var rootCmd = &cobra.Command{
 		} else if zero && one {
 			one = false
 		}
+		if fastFlag && slowFlag {
+			fastFlag = false
+		}
+		if eShellFlag && dShellFlag {
+			eShellFlag = false
+		}
+		if eDeleteFlag && dDeleteFlag {
+			eDeleteFlag = false
+		}
+		if eRefreshFlag && dRefreshFlag {
+			eRefreshFlag = false
+		}
+		r, _ := cmd.Flags().GetCount("rFlag")
+		switch r {
+		case 1:
+			eDeleteFlag = false
+		case 2:
+			eShellFlag = false
+		}
+		if siFlag && noSiFlag {
+			noSiFlag = false
+		}
+		if duFlag && apFlag {
+			duFlag = false
+		}
+		if shFlag && hhFlag {
+			shFlag = false
+		}
+		if sicFlag && hicFlag {
+			hicFlag = false
+		}
+		if smtFlag && hmtFlag {
+			hmtFlag = false
+		}
+		if sgFlag && hgFlag {
+			sgFlag = false
+		}
+
 	},
 }
 
@@ -155,7 +187,7 @@ var (
 	dDeleteFlag  bool
 	eRefreshFlag bool
 	dRefreshFlag bool
-	rFlag        bool
+	rFlag        int = 0
 	siFlag       bool
 	noSiFlag     bool
 	duFlag       bool
@@ -215,9 +247,9 @@ func init() {
 	flags.BoolVar(&dDeleteFlag, "disable-delete", false, "Disable the built-in file deletion feature. This feature is enabled by default when scanning a live directory and disabled when importing from file. Explicitly disabling the deletion feature can work as a safeguard to prevent accidental data loss.")
 	flags.BoolVar(&eRefreshFlag, "enable-refresh", true, "Enable directory refreshing from the browser. This feature is enabled by default when scanning a live directory and disabled when importing from file.")
 	flags.BoolVar(&dRefreshFlag, "disable-refresh", false, "Disable directory refreshing from the browser. This feature is enabled by default when scanning a live directory and disabled when importing from file.")
-	flags.BoolVar(&rFlag, "r", false, "Read-only mode. When given once, this is an alias for --disable-delete, when given twice it will also add --disable-shell, thus ensuring that there is no way to modify the file system from within godu.")
+	flags.CountVar(&rFlag, "r", "Read-only mode. When given once, this is an alias for --disable-delete, when given twice it will also add --disable-shell, thus ensuring that there is no way to modify the file system from within godu.")
 	flags.BoolVar(&siFlag, "si", false, "List sizes using base 10 prefixes, that is, powers of 1000 (KB, MB, etc), as defined in the International System of Units (SI), instead of the usual base 2 prefixes, that is, powers of 1024 (KiB, MiB, etc).")
-	flags.BoolVar(&noSiFlag, "no-si", false, "List sizes using the usual base 2 prefixes, that is, powers of 1024 (KiB, MiB, etc).")
+	flags.BoolVar(&noSiFlag, "no-si", true, "List sizes using the usual base 2 prefixes, that is, powers of 1024 (KiB, MiB, etc).")
 	flags.BoolVar(&duFlag, "disk-usage", true, "Display disk usage (default). Can also be toggled to apparent size in the browser with the 'a' key.")
 	flags.BoolVar(&apFlag, "apparent-size", false, "Display apparent sizes. Can also be toggled to disk usage in the browser with the 'a' key.")
 	flags.BoolVar(&shFlag, "show-hidden", true, "Show (default) 'hidden' and excluded files. Can also be toggled in the browser with the 'e' key.")
