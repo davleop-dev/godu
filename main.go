@@ -13,7 +13,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
 /*
@@ -71,7 +70,7 @@ var rootCmd = &cobra.Command{
 			fmt.Println(f)
 		}
 		e, ne := extendedFlag, noExtendedFlag
-		if e && ne{
+		if e && ne {
 			e = false
 		}
 		ic := icFlag
@@ -83,7 +82,7 @@ var rootCmd = &cobra.Command{
 			fmt.Println("Needs implementation of filesystem boundaries")
 		}
 		c := cfsFlag
-		if c && x{
+		if c && x {
 			x = false
 		}
 		ex := exclude
@@ -108,30 +107,41 @@ var rootCmd = &cobra.Command{
 		if sym && noSym {
 			sym = false
 		}
+		k, ek := kernFlag, exKernFlag
+		if k && ek {
+			k = false
+		}
+		zero, one, two := zeroFlag, oneFlag, twoFlag
+		if two {
+			zero = false
+			one = false
+		} else if zero && one {
+			one = false
+		}
 	},
 }
 
 var (
 	//Scan and mode selection options
-	symLinkFlag        bool
-	noSymLinkFlag      bool
-	bigXFlag           string
-	exclude            []string
-	cfsFlag            bool
-	xFlag              bool
-	icFlag             bool
-	extendedFlag       bool
+	symLinkFlag    bool
+	noSymLinkFlag  bool
+	bigXFlag       string
+	exclude        []string
+	cfsFlag        bool
+	xFlag          bool
+	icFlag         bool
+	extendedFlag   bool
 	noExtendedFlag bool
-	versionFlag        bool
-	inputFile          string
-	outputFlag         string
-	outputFile         io.Writer
-	logFlag            string
-	logFile            *os.File
-	err                error
-	dir                string
-	kernFlag           bool
-	exKernFlag         bool
+	versionFlag    bool
+	inputFile      string
+	outputFlag     string
+	outputFile     io.Writer
+	logFlag        string
+	logFile        *os.File
+	err            error
+	dir            string
+	kernFlag       bool
+	exKernFlag     bool
 	//interface options
 	zeroFlag     bool
 	oneFlag      bool
@@ -230,11 +240,10 @@ func init() {
 	flags.StringVar(&colorFlag, "color", "", "color [SCHEME]: Select a color scheme. The following schemes are recognized: off to disable colors, dark for a color scheme intended for dark backgrounds and dark-bg for a variation of the dark color scheme that also works in terminals with a light background. The default is dark-bg unless the NO_COLOR environment variable is set.")
 }
 
-func aliasNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName{
+/*func aliasNormalizeFunc(f *pflag.FlagSet, name string) pflag.NormalizedName{
 	switch name{
-		case ""
 	}
-}
+}*/
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
