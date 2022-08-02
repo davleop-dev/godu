@@ -14,6 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const godu_version = "v0.1.0a"
+
 /*
 	This var sets up the root command and then all other commands. The root command, according to Cobra's structure, is the first thing we hit when we run the program.
 	Imagine it as an automatic constructor that's allowing us to run an instance of this program.
@@ -120,7 +122,7 @@ var (
 )
 
 func version() {
-	fmt.Println("Version goes here")
+	fmt.Println(godu_version)
 }
 
 func init() {
@@ -139,34 +141,49 @@ func init() {
 
 }
 
+func crappyCalculation(files []du.File) (map[string]int64, int64) {
+	drsz := make(map[string]int64)
+	totalSz := int64(0)
+
+	for _, file := range files {
+		if _, ok := drsz[file.HighDir]; ok {
+			drsz[file.HighDir] += file.Size
+		} else {
+			drsz[file.HighDir] = file.Size
+		}
+		totalSz += file.Size
+	}
+
+	return drsz, totalSz
+}
+
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatal(err)
 	}
 
-	directory := "."
-	hidden := false
-	defaultOrdering := "name"
-	directoryOrder := true
-	diskUsage := true
-	// percentage := true, graph, both, none
-	uniqCol := false
-	modifyTime := false
+	hidden := true
+	defaultOrdering := tui.Size
+	directoryFirst := false
+	desc := true
 
-	files, err := du.ListFilesRecursivelyInParallel(directory)
+	files, err := du.ListFilesRecursivelyInParallel(dir)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	drsz, totsz := crappyCalculation(files)
+
 	initialModel := tui.Model{
-		CurrentDirectory: directory,
+		CurrentDirectory: dir,
 		ShowHidden:       hidden,
-		Order:            defaultOrdering,
-		DirectoryFirst:   directoryOrder,
-		ShowDiskUsage:    diskUsage,
-		ShowUniqCol:      uniqCol,
-		ModifyTime:       modifyTime,
+		ListOrder:        defaultOrdering,
+		Descending:       desc,
+		DirectoryFirst:   directoryFirst,
 		Files:            files,
+		DirSz:            drsz,
+		TotalSz:          totsz,
+		Version:          godu_version,
 	}
 
 	p := tea.NewProgram(tui.NewModel(initialModel), tea.WithAltScreen())
