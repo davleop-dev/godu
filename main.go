@@ -149,6 +149,9 @@ var rootCmd = &cobra.Command{
 		if sgFlag && hgFlag {
 			sgFlag = false
 		}
+		if spFlag && hpFlag {
+			spFlag = false
+		}
 
 	},
 }
