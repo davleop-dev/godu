@@ -16,8 +16,8 @@ import (
 )
 
 /*
-	This var sets up the root command and then all other commands. The root command, according to Cobra's structure, is the first thing we hit when we run the program.
-	Imagine it as an automatic constructor that's allowing us to run an instance of this program.
+This var sets up the root command and then all other commands. The root command, according to Cobra's structure, is the first thing we hit when we run the program.
+Imagine it as an automatic constructor that's allowing us to run an instance of this program.
 */
 var rootCmd = &cobra.Command{
 	Use: "put usage example here",
@@ -151,6 +151,9 @@ var rootCmd = &cobra.Command{
 		}
 		if spFlag && hpFlag {
 			spFlag = false
+		}
+		if gdFlag && ngdFlag {
+			gdFlag = false
 		}
 
 	},
