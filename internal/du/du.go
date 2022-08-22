@@ -1,8 +1,8 @@
 package du
 
 import (
+	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,15 +15,44 @@ var ComputeHashes = true
 
 // File is the object that contains the info and path of the file
 type File struct {
-	Path    string
-	HighDir string
-	Name    string
-	Size    int64
-	Mode    os.FileMode
-	ModTime time.Time
-	IsDir   bool
-	Hash    uint64 `hash:"ignore"`
+	Path         string
+	HighDir      string
+	Name         string
+	Size         int64
+	ApparentSize int64
+	HumanSize    string // bytesize.ByteSize
+	Mode         os.FileMode
+	ModTime      time.Time
+	IsDir        bool
+	Hash         uint64 `hash:"ignore"`
 }
+
+type NameSorter []File
+
+func (a NameSorter) Len() int           { return len(a) }
+func (a NameSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a NameSorter) Less(i, j int) bool { return a[i].Name < a[j].Name }
+
+type TimeSorter []File
+
+func (a TimeSorter) Len() int           { return len(a) }
+func (a TimeSorter) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a TimeSorter) Less(i, j int) bool { return a[i].ModTime.Before(a[j].ModTime) }
+
+func PrettyPrintSize(size int64) string {
+	switch {
+	case size > 1024*1024*1024:
+		return fmt.Sprintf("%.1fG", float64(size)/(1024*1024*1024))
+	case size > 1024*1024:
+		return fmt.Sprintf("%.1fM", float64(size)/(1024*1024))
+	case size > 1024:
+		return fmt.Sprintf("%.1fK", float64(size)/1024)
+	default:
+		return fmt.Sprintf("%d", size)
+	}
+}
+
+// TODO(david): properly handle errors
 
 // ListFilesRecursivelyInParallel uses goroutines to list all the files
 func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
@@ -38,13 +67,14 @@ func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
 	}
 	files = []File{
 		{
-			Path:    dir,
-			HighDir: dir,
-			Name:    dir,
-			Size:    info.Size(),
-			Mode:    info.Mode(),
-			ModTime: info.ModTime(),
-			IsDir:   info.IsDir(),
+			Path:      dir,
+			HighDir:   dir,
+			Name:      dir,
+			Size:      info.Size(),
+			HumanSize: PrettyPrintSize(info.Size()),
+			Mode:      info.Mode(),
+			ModTime:   info.ModTime(),
+			IsDir:     info.IsDir(),
 		},
 	}
 	f.Close()
@@ -78,7 +108,6 @@ func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
 			break
 		}
 	}
-	log.Println("len:", len(files))
 	return
 }
 
@@ -87,15 +116,19 @@ func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan
 	if err != nil {
 		panic(err)
 	}
+	// maybe create chan here and calculate size here
+	//apparentSize := int64(0)
 	for _, f := range files {
+		//apparentSize += f.Size()
 		fileStruct := File{
-			Path:    path.Join(dir, f.Name()),
-			HighDir: dir,
-			Name:    f.Name(),
-			Size:    f.Size(),
-			Mode:    f.Mode(),
-			ModTime: f.ModTime(),
-			IsDir:   f.IsDir(),
+			Path:      path.Join(dir, f.Name()),
+			HighDir:   dir,
+			Name:      f.Name(),
+			Size:      f.Size(),
+			HumanSize: PrettyPrintSize(f.Size()),
+			Mode:      f.Mode(),
+			ModTime:   f.ModTime(),
+			IsDir:     f.IsDir(),
 		}
 		if ComputeHashes {
 			h, err := hashstructure.Hash(fileStruct, nil)

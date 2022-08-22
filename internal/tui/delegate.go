@@ -8,6 +8,8 @@ import (
 
 func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 	d := list.NewDefaultDelegate()
+	d.SetSpacing(0)
+	d.SetHeight(0)
 
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		var title string

@@ -1,10 +1,14 @@
 package tui
 
 import (
+	"fmt"
 	. "internal/du"
+	"sort"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -21,6 +25,27 @@ var (
 				Foreground(lipgloss.AdaptiveColor{Light: "#04B575", Dark: "#04B575"}).
 				Render
 )
+
+type Order int64
+
+const (
+	Undefined Order = iota
+	Name
+	Size
+	ModTime
+)
+
+func (o Order) String() string {
+	switch o {
+	case Name:
+		return "name"
+	case Size:
+		return "size"
+	case ModTime:
+		return "modify"
+	}
+	return "unknown"
+}
 
 type item struct {
 	title       string
@@ -71,22 +96,143 @@ func newListKeyMap() *listKeyMap {
 
 type Model struct {
 	// This section is for maintaining the `du` content
-	CurrentDirectory string
-	Cursor           int
-	Subcursor        int
-	ShowHidden       bool
-	Order            string
-	DirectoryFirst   bool
-	ShowDiskUsage    bool
-	ShowUniqCol      bool
-	ModifyTime       bool
-	Files            []File
-	currentFiles     []File
+	CurrentDirectory   string
+	Files              []File
+	currentDirectories []File
+	currentFiles       []File
+	DirSz              map[string]int64
+	TotalSz            int64
+
+	// other options
+	ListOrder      Order
+	Descending     bool
+	ShowHidden     bool
+	DirectoryFirst bool
 
 	// the rest is for actually maintaining the TUI display
 	list         list.Model
 	keys         *listKeyMap
 	delegateKeys *delegateKeyMap
+	Version      string
+}
+
+func (m Model) updateCurrentFiles(newDir string) []list.Item {
+	// TODO(david): add filter checks here...
+	for _, file := range m.Files {
+		if !m.ShowHidden && strings.HasPrefix(file.Name, ".") {
+			continue
+		}
+		if file.HighDir == m.CurrentDirectory && file.Name != m.CurrentDirectory {
+			if file.IsDir {
+				m.currentDirectories = append(m.currentDirectories, file)
+			} else {
+				m.currentFiles = append(m.currentFiles, file)
+			}
+		}
+	}
+
+	// Calculate usage of currently displayed items
+
+	// TODO(david): there's probably a prettier way to do this, but it'll  work
+	if !m.DirectoryFirst {
+		m.currentFiles = append(m.currentFiles, m.currentDirectories...)
+
+		switch m.ListOrder {
+		case Name:
+			sort.Sort(NameSorter(m.currentFiles))
+		case Size:
+			sort.SliceStable(m.currentFiles, func(i, j int) bool {
+				return m.currentFiles[i].Size > m.currentFiles[j].Size
+			})
+		case ModTime:
+			sort.Sort(TimeSorter(m.currentFiles))
+		}
+
+		fileCount := len(m.currentFiles)
+		items := make([]list.Item, fileCount)
+		for i := 0; i < fileCount; i++ {
+			title := m.formatItemTitle(m.currentFiles[i])
+			items[i] = item{title: title}
+		}
+		return items
+	} else {
+		switch m.ListOrder {
+		case Name:
+			sort.Sort(NameSorter(m.currentDirectories))
+			sort.Sort(NameSorter(m.currentFiles))
+		case Size:
+			sort.SliceStable(m.currentDirectories, func(i, j int) bool {
+				return m.currentDirectories[i].Size > m.currentDirectories[j].Size
+			})
+			sort.SliceStable(m.currentFiles, func(i, j int) bool {
+				return m.currentFiles[i].Size > m.currentFiles[j].Size
+			})
+		case ModTime:
+			sort.Sort(TimeSorter(m.currentDirectories))
+			sort.Sort(TimeSorter(m.currentFiles))
+		}
+
+		// Create list view
+		directoryCount := len(m.currentDirectories)
+		fileCount := len(m.currentFiles)
+		totalCount := directoryCount + fileCount
+		items := make([]list.Item, totalCount)
+
+		if m.DirectoryFirst {
+			for i := 0; i < directoryCount; i++ {
+				title := m.formatItemTitle(m.currentDirectories[i])
+				items[i] = item{title: title}
+			}
+			j := 0
+			for i := directoryCount; i < totalCount; i++ {
+				title := m.formatItemTitle(m.currentFiles[j])
+				items[i] = item{title: title}
+				j++
+			}
+			return items
+		} else {
+			for i := 0; i < fileCount; i++ {
+				title := m.formatItemTitle(m.currentFiles[i])
+				items[i] = item{title: title}
+			}
+			j := 0
+			for i := fileCount; i < totalCount; i++ {
+				title := m.formatItemTitle(m.currentDirectories[j])
+				items[i] = item{title: title}
+				j++
+			}
+			return items
+		}
+	}
+
+}
+
+func (m Model) formatItemTitle(file File) string {
+	// this should formatted eventually as so:
+	// F SSS.S UUU [BBBBBBBBB] filename -->
+	// TODO(david): calculate sizes later
+	prog := progress.New(progress.WithScaledGradient("#00FF00", "#FF0000"))
+	prog.Width = 11
+	n := 0.0
+	humanSize := file.HumanSize
+	if file.IsDir {
+		n = float64(m.DirSz[file.HighDir]) / float64(m.TotalSz)
+		humanSize = PrettyPrintSize(m.DirSz[file.HighDir])
+	} else {
+		n = float64(file.Size) / float64(m.TotalSz)
+	}
+	graph := prog.ViewAs(n)
+
+	// setting `F` here
+	mode := " "
+	if !file.Mode.IsRegular() {
+		mode = "@"
+	}
+	if file.IsDir {
+		mode = " "
+	}
+
+	return fmt.Sprintf("%-2s %8s %-9s   %s", mode, humanSize, graph, file.Name)
 }
 
 func NewModel(m Model) Model {
@@ -95,23 +241,14 @@ func NewModel(m Model) Model {
 		listKeys     = newListKeyMap()
 	)
 
-	for _, file := range m.Files {
-		if file.HighDir == m.CurrentDirectory {
-			m.currentFiles = append(m.currentFiles, file)
-		}
-	}
-
-	// Create list
-	numItems := len(m.currentFiles)
-	items := make([]list.Item, numItems)
-	for i := 0; i < numItems; i++ {
-		items[i] = item{title: m.currentFiles[i].Name, description: m.currentFiles[i].HighDir}
-	}
+	items := m.updateCurrentFiles(m.CurrentDirectory)
 
 	// Setup list
 	delegate := newItemDelegate(delegateKeys)
+	delegate.ShowDescription = false
 	currentFiles := list.New(items, delegate, 0, 0)
-	currentFiles.Title = "godu <version>"
+	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.TotalSz), m.CurrentDirectory)
+	currentFiles.Title = title
 	currentFiles.Styles.Title = titleStyle
 	currentFiles.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
@@ -187,4 +324,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	return appStyle.Render(m.list.View())
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
