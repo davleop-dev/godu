@@ -216,8 +216,8 @@ func (m Model) formatItemTitle(file File) string {
 	n := 0.0
 	humanSize := file.HumanSize
 	if file.IsDir {
-		n = float64(m.DirSz[file.HighDir]) / float64(m.TotalSz)
-		humanSize = PrettyPrintSize(m.DirSz[file.HighDir])
+		n = float64(m.DirSz[file.HighDir+"/"+file.Name]) / float64(m.TotalSz)
+		humanSize = PrettyPrintSize(m.DirSz[file.HighDir+"/"+file.Name])
 	} else {
 		n = float64(file.Size) / float64(m.TotalSz)
 	}
@@ -232,7 +232,11 @@ func (m Model) formatItemTitle(file File) string {
 		mode = " "
 	}
 
-	return fmt.Sprintf("%-2s %8s %-9s   %s", mode, humanSize, graph, file.Name)
+	if file.IsDir {
+		return fmt.Sprintf("%-2s %8s %-9s   %s/", mode, humanSize, graph, file.Name)
+	} else {
+		return fmt.Sprintf("%-2s %8s %-9s   %s", mode, humanSize, graph, file.Name)
+	}
 }
 
 func NewModel(m Model) Model {
@@ -311,7 +315,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.insertItem):
 			m.delegateKeys.remove.SetEnabled(true)
-			return m, nil // tea.Batch()
+			return m, nil
 		}
 	}
 

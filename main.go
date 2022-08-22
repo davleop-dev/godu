@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	du "internal/du"
 	tui "internal/tui"
@@ -63,7 +64,7 @@ var rootCmd = &cobra.Command{
 		if len(args) == 1 {
 			dir, _ = filepath.Abs(args[0])
 		} else {
-			dir = "."
+			dir, _ = filepath.Abs(".")
 		}
 		f := inputFile
 		if f != "" {
@@ -141,17 +142,23 @@ func init() {
 
 }
 
-func crappyCalculation(files []du.File) (map[string]int64, int64) {
+func crappyCalculation(files []du.File, dir string) (map[string]int64, int64) {
 	drsz := make(map[string]int64)
 	totalSz := int64(0)
 
 	for _, file := range files {
-		if _, ok := drsz[file.HighDir]; ok {
-			drsz[file.HighDir] += file.Size
-		} else {
-			drsz[file.HighDir] = file.Size
-		}
 		totalSz += file.Size
+		if file.Name == dir {
+			continue
+		}
+		if len(drsz) == 0 {
+			drsz[file.HighDir] += file.Size
+		}
+		for k, _ := range drsz {
+			if strings.HasPrefix(file.HighDir, k) {
+				drsz[file.HighDir] += file.Size
+			}
+		}
 	}
 
 	return drsz, totalSz
@@ -172,7 +179,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	drsz, totsz := crappyCalculation(files)
+	drsz, totsz := crappyCalculation(files, dir)
 
 	initialModel := tui.Model{
 		CurrentDirectory: dir,
@@ -190,4 +197,9 @@ func main() {
 	if err := p.Start(); err != nil {
 		log.Fatal(err)
 	}
+
+	for k, v := range initialModel.DirSz {
+		fmt.Printf("%s\t\t%s\n", du.PrettyPrintSize(v), k)
+	}
+	fmt.Println(totsz)
 }

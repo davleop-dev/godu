@@ -116,10 +116,7 @@ func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan
 	if err != nil {
 		panic(err)
 	}
-	// maybe create chan here and calculate size here
-	//apparentSize := int64(0)
 	for _, f := range files {
-		//apparentSize += f.Size()
 		fileStruct := File{
 			Path:      path.Join(dir, f.Name()),
 			HighDir:   dir,
