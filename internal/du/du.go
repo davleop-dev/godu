@@ -4,14 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"time"
-
-	"github.com/mitchellh/hashstructure"
 )
 
-var ComputeHashes = true
+var ComputeHashes = false
 
 // File is the object that contains the info and path of the file
 type File struct {
@@ -20,11 +17,24 @@ type File struct {
 	Name         string
 	Size         int64
 	ApparentSize int64
-	HumanSize    string // bytesize.ByteSize
+	HumanSize    string
 	Mode         os.FileMode
 	ModTime      time.Time
-	IsDir        bool
 	Hash         uint64 `hash:"ignore"`
+}
+
+type Folder struct {
+	Path         string
+	HighDir      string
+	Name         string
+	Size         int64
+	ApparentSize int64
+	HumanSize    string
+	Mode         os.FileMode
+	ModTime      time.Time
+	Hash         uint64 `hash:"ignore"`
+	Files        []File
+	Folders      []Folder
 }
 
 type NameSorter []File
@@ -54,8 +64,53 @@ func PrettyPrintSize(size int64) string {
 
 // TODO(david): properly handle errors
 
+func CreateFileTree(dir string) (root Folder, err error) {
+	dir = filepath.Clean(dir)
+	f, err := os.Open(dir)
+	if err != nil {
+		return
+	}
+	info, err := f.Stat()
+	if err != nil {
+		return
+	}
+
+	// Prestep things before creating struct
+	size := info.Size()
+	fls, err := ioutil.ReadDir(dir)
+	files := make([]File)
+	folders := make([]Folder)
+	if err != nil {
+		panic(err)
+	}
+	for _, f := range fls {
+		if f.IsDir() {
+			folders = append(folders, f)
+		} else {
+			files = append(files, f)
+		}
+	}
+
+	root = Folder{
+		Path:      dir,
+		HighDir:   dir,
+		Name:      dir,
+		Size:      size,
+		HumanSize: PrettyPrintSize(size),
+		Mode:      info.Mode(),
+		ModTime:   info.ModTime(),
+		Files:     files,
+		Folders:   folders,
+	}
+	f.Close()
+}
+
+// func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan File) {
+// We should probably use a recursive call here...
+func createFileTreeHelper(dir string) {}
+
 // ListFilesRecursivelyInParallel uses goroutines to list all the files
-func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
+/*func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
 	dir = filepath.Clean(dir)
 	f, err := os.Open(dir)
 	if err != nil {
@@ -142,4 +197,4 @@ func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan
 	}
 	startedDirectories <- false
 	return
-}
+}*/

@@ -313,7 +313,7 @@ func main() {
 	directoryFirst := false
 	desc := true
 
-	files, err := du.ListFilesRecursivelyInParallel(dir)
+	/*files, err := du.ListFilesRecursivelyInParallel(dir)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -330,15 +330,10 @@ func main() {
 		DirSz:            drsz,
 		TotalSz:          totsz,
 		Version:          godu_version,
-	}
+	}*/
 
 	p := tea.NewProgram(tui.NewModel(initialModel), tea.WithAltScreen())
 	if err := p.Start(); err != nil {
 		log.Fatal(err)
 	}
-
-	for k, v := range initialModel.DirSz {
-		fmt.Printf("%s\t\t%s\n", du.PrettyPrintSize(v), k)
-	}
-	fmt.Println(totsz)
 }
