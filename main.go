@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -10,7 +11,7 @@ import (
 	"strings"
 
 	du "internal/du"
-	tui "internal/tui"
+	"internal/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -310,27 +311,59 @@ func main() {
 
 	hidden := true
 	defaultOrdering := tui.Size
-	directoryFirst := false
+	directoryFirst := true
 	desc := true
 
-	/*files, err := du.ListFilesRecursivelyInParallel(dir)
+	root, err := du.CreateFileTree(dir)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	drsz, totsz := crappyCalculation(files, dir)
+	// Marshal it!
+	jsn, err := json.MarshalIndent(root, "", " ")
+	if err != nil {
+		return
+	}
+	fmt.Println(string(jsn))
+
+	/*files, err := du.ListFilesRecursivelyInParallel(dir)
+	if err != nil {
+		log.Fatalln(err)
+	}*/
+
+	_, totsz := int64(0), int64(1000)
+
+	/*
+		type Model struct {
+			// This section is for maintaining the `du` content
+			CurrentFolder Folder
+			Root          Folder
+			TotalSz       int64
+
+			// other options
+			ListOrder      Order
+			Descending     bool
+			ShowHidden     bool
+			DirectoryFirst bool
+
+			// the rest is for actually maintaining the TUI display
+			list         list.Model
+			keys         *listKeyMap
+			delegateKeys *delegateKeyMap
+			Version      string
+		}
+	*/
 
 	initialModel := tui.Model{
-		CurrentDirectory: dir,
-		ShowHidden:       hidden,
-		ListOrder:        defaultOrdering,
-		Descending:       desc,
-		DirectoryFirst:   directoryFirst,
-		Files:            files,
-		DirSz:            drsz,
-		TotalSz:          totsz,
-		Version:          godu_version,
-	}*/
+		CurrentFolder:  root,
+		Root:           root,
+		TotalSz:        totsz,
+		ShowHidden:     hidden,
+		ListOrder:      defaultOrdering,
+		Descending:     desc,
+		DirectoryFirst: directoryFirst,
+		Version:        godu_version,
+	}
 
 	p := tea.NewProgram(tui.NewModel(initialModel), tea.WithAltScreen())
 	if err := p.Start(); err != nil {

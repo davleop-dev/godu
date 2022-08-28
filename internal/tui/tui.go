@@ -3,8 +3,6 @@ package tui
 import (
 	"fmt"
 	. "internal/du"
-	"sort"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -96,12 +94,9 @@ func newListKeyMap() *listKeyMap {
 
 type Model struct {
 	// This section is for maintaining the `du` content
-	CurrentDirectory   string
-	Files              []File
-	currentDirectories []File
-	currentFiles       []File
-	DirSz              map[string]int64
-	TotalSz            int64
+	CurrentFolder Folder
+	Root          Folder
+	TotalSz       int64
 
 	// other options
 	ListOrder      Order
@@ -116,9 +111,35 @@ type Model struct {
 	Version      string
 }
 
-func (m Model) updateCurrentFiles(newDir string) []list.Item {
+func (m Model) updateCurrentFiles(folder Folder) []list.Item {
+	if m.DirectoryFirst {
+		/*switch m.ListOrder {
+		case Name:
+		case Size:
+		case ModTime:
+		}*/
+		fileCount := len(folder.Files)
+		folderCount := len(folder.Folders)
+		totalCount := fileCount + folderCount
+		items := make([]list.Item, totalCount)
+
+		for i := 0; i < folderCount; i++ {
+			title := m.formatFolderItemTitle(m.CurrentFolder.Folders[i])
+			items[i] = item{title: title}
+		}
+		j := 0
+		for i := folderCount; i < totalCount; i++ {
+			title := m.formatFileItemTitle(m.CurrentFolder.Files[j])
+			items[i] = item{title: title}
+			j++
+		}
+		return items
+	} else {
+		items := make([]list.Item, 0)
+		return items
+	}
 	// TODO(david): add filter checks here...
-	for _, file := range m.Files {
+	/*for _, file := range m.Files {
 		if !m.ShowHidden && strings.HasPrefix(file.Name, ".") {
 			continue
 		}
@@ -203,11 +224,11 @@ func (m Model) updateCurrentFiles(newDir string) []list.Item {
 			}
 			return items
 		}
-	}
+	}*/
 
 }
 
-func (m Model) formatItemTitle(file File) string {
+func (m Model) formatFileItemTitle(file File) string {
 	// this should formatted eventually as so:
 	// F SSS.S UUU [BBBBBBBBB] filename -->
 	// TODO(david): calculate sizes later
@@ -215,12 +236,7 @@ func (m Model) formatItemTitle(file File) string {
 	prog.Width = 11
 	n := 0.0
 	humanSize := file.HumanSize
-	if file.IsDir {
-		n = float64(m.DirSz[file.HighDir+"/"+file.Name]) / float64(m.TotalSz)
-		humanSize = PrettyPrintSize(m.DirSz[file.HighDir+"/"+file.Name])
-	} else {
-		n = float64(file.Size) / float64(m.TotalSz)
-	}
+	n = float64(file.Size) / float64(m.TotalSz)
 	graph := prog.ViewAs(n)
 
 	// setting `F` here
@@ -228,30 +244,39 @@ func (m Model) formatItemTitle(file File) string {
 	if !file.Mode.IsRegular() {
 		mode = "@"
 	}
-	if file.IsDir {
-		mode = " "
-	}
-
-	if file.IsDir {
-		return fmt.Sprintf("%-2s %8s %-9s   %s/", mode, humanSize, graph, file.Name)
-	} else {
-		return fmt.Sprintf("%-2s %8s %-9s   %s", mode, humanSize, graph, file.Name)
-	}
+	return fmt.Sprintf("%-2s %8s %-9s   %s", mode, humanSize, graph, file.Name)
 }
 
+func (m Model) formatFolderItemTitle(file Folder) string {
+	// this should formatted eventually as so:
+	// F SSS.S UUU [BBBBBBBBB] filename -->
+	// TODO(david): calculate sizes later
+	prog := progress.New(progress.WithScaledGradient("#00FF00", "#FF0000"))
+	prog.Width = 11
+	n := 0.0
+	humanSize := file.HumanSize
+	n = 0.                     //float64(m.DirSz[file.HighDir+"/"+file.Name]) / float64(m.TotalSz)
+	humanSize = file.HumanSize //PrettyPrintSize(m.DirSz[file.HighDir+"/"+file.Name])
+	graph := prog.ViewAs(n)
+
+	// setting `F` here
+	mode := " "
+
+	return fmt.Sprintf("%-2s %8s %-9s   %s/", mode, humanSize, graph, file.Name)
+}
 func NewModel(m Model) Model {
 	var (
 		delegateKeys = newDelegateKeyMap()
 		listKeys     = newListKeyMap()
 	)
 
-	items := m.updateCurrentFiles(m.CurrentDirectory)
+	items := m.updateCurrentFiles(m.CurrentFolder)
 
 	// Setup list
 	delegate := newItemDelegate(delegateKeys)
 	delegate.ShowDescription = false
 	currentFiles := list.New(items, delegate, 0, 0)
-	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.TotalSz), m.CurrentDirectory)
+	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.TotalSz), m.CurrentFolder.Path)
 	currentFiles.Title = title
 	currentFiles.Styles.Title = titleStyle
 	currentFiles.AdditionalFullHelpKeys = func() []key.Binding {

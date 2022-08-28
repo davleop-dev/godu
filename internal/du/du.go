@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 )
@@ -78,23 +79,31 @@ func CreateFileTree(dir string) (root Folder, err error) {
 	// Prestep things before creating struct
 	size := info.Size()
 	fls, err := ioutil.ReadDir(dir)
-	files := make([]File)
-	folders := make([]Folder)
+	files := make([]File, 0)
+	folders := make([]Folder, 0)
 	if err != nil {
-		panic(err)
+		return
 	}
 	for _, f := range fls {
 		if f.IsDir() {
-			folders = append(folders, f)
+			folders = append(folders, createFileTreeHelper(path.Join(dir, f.Name())))
 		} else {
-			files = append(files, f)
+			files = append(files, File{
+				Path:      f.Name(),
+				HighDir:   dir,
+				Name:      f.Name(),
+				Size:      f.Size(),
+				HumanSize: PrettyPrintSize(f.Size()),
+				Mode:      f.Mode(),
+				ModTime:   f.ModTime(),
+			})
 		}
 	}
 
 	root = Folder{
 		Path:      dir,
 		HighDir:   dir,
-		Name:      dir,
+		Name:      info.Name(),
 		Size:      size,
 		HumanSize: PrettyPrintSize(size),
 		Mode:      info.Mode(),
@@ -103,14 +112,10 @@ func CreateFileTree(dir string) (root Folder, err error) {
 		Folders:   folders,
 	}
 	f.Close()
+	return
 }
 
-// func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan File) {
-// We should probably use a recursive call here...
-func createFileTreeHelper(dir string) {}
-
-// ListFilesRecursivelyInParallel uses goroutines to list all the files
-/*func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
+func createFileTreeHelper(dir string) (root Folder) {
 	dir = filepath.Clean(dir)
 	f, err := os.Open(dir)
 	if err != nil {
@@ -120,81 +125,42 @@ func createFileTreeHelper(dir string) {}
 	if err != nil {
 		return
 	}
-	files = []File{
-		{
-			Path:      dir,
-			HighDir:   dir,
-			Name:      dir,
-			Size:      info.Size(),
-			HumanSize: PrettyPrintSize(info.Size()),
-			Mode:      info.Mode(),
-			ModTime:   info.ModTime(),
-			IsDir:     info.IsDir(),
-		},
+
+	// Prestep things before creating struct
+	size := info.Size()
+	fls, err := ioutil.ReadDir(dir)
+	files := make([]File, 0)
+	folders := make([]Folder, 0)
+	if err != nil {
+		return
+	}
+	for _, f := range fls {
+		if f.IsDir() {
+			folders = append(folders, createFileTreeHelper(path.Join(dir, f.Name())))
+		} else {
+			files = append(files, File{
+				Path:      f.Name(),
+				HighDir:   dir,
+				Name:      f.Name(),
+				Size:      f.Size(),
+				HumanSize: PrettyPrintSize(f.Size()),
+				Mode:      f.Mode(),
+				ModTime:   f.ModTime(),
+			})
+		}
+	}
+
+	root = Folder{
+		Path:      dir,
+		HighDir:   dir,
+		Name:      info.Name(),
+		Size:      size,
+		HumanSize: PrettyPrintSize(size),
+		Mode:      info.Mode(),
+		ModTime:   info.ModTime(),
+		Files:     files,
+		Folders:   folders,
 	}
 	f.Close()
-
-	if ComputeHashes {
-		h, err := hashstructure.Hash(files[0], nil)
-		if err != nil {
-			panic(err)
-		}
-		files[0].Hash = h
-	}
-
-	fileChan := make(chan File)
-	startedDirectories := make(chan bool)
-	go listFilesInParallel(dir, startedDirectories, fileChan)
-
-	runningCount := 1
-	for {
-		select {
-		case file := <-fileChan:
-			files = append(files, file)
-		case newDir := <-startedDirectories:
-			if newDir {
-				runningCount++
-			} else {
-				runningCount--
-			}
-		default:
-		}
-		if runningCount == 0 {
-			break
-		}
-	}
 	return
 }
-
-func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan File) {
-	files, err := ioutil.ReadDir(dir)
-	if err != nil {
-		panic(err)
-	}
-	for _, f := range files {
-		fileStruct := File{
-			Path:      path.Join(dir, f.Name()),
-			HighDir:   dir,
-			Name:      f.Name(),
-			Size:      f.Size(),
-			HumanSize: PrettyPrintSize(f.Size()),
-			Mode:      f.Mode(),
-			ModTime:   f.ModTime(),
-			IsDir:     f.IsDir(),
-		}
-		if ComputeHashes {
-			h, err := hashstructure.Hash(fileStruct, nil)
-			if err != nil {
-				panic(err)
-			}
-			fileStruct.Hash = h
-		}
-		fileChan <- fileStruct
-		if f.IsDir() {
-			startedDirectories <- true
-			go listFilesInParallel(path.Join(dir, f.Name()), startedDirectories, fileChan)
-		}
-	}
-	startedDirectories <- false
-	return
-}*/
