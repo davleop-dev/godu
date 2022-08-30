@@ -100,6 +100,14 @@ func CreateFileTree(dir string) (root Folder, err error) {
 		}
 	}
 
+	// Maybe not count directory as 4K?
+	for _, file := range files {
+		size += file.Size
+	}
+	for _, folder := range folders {
+		size += folder.Size
+	}
+
 	root = Folder{
 		Path:      dir,
 		HighDir:   dir,
@@ -148,6 +156,14 @@ func createFileTreeHelper(dir string) (root Folder) {
 				ModTime:   f.ModTime(),
 			})
 		}
+	}
+
+	// Maybe not count directory as 4K?
+	for _, file := range files {
+		size += file.Size
+	}
+	for _, folder := range folders {
+		size += folder.Size
 	}
 
 	root = Folder{

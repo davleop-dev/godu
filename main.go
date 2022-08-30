@@ -331,8 +331,6 @@ func main() {
 		log.Fatalln(err)
 	}*/
 
-	_, totsz := int64(0), int64(1000)
-
 	/*
 		type Model struct {
 			// This section is for maintaining the `du` content
@@ -357,7 +355,6 @@ func main() {
 	initialModel := tui.Model{
 		CurrentFolder:  root,
 		Root:           root,
-		TotalSz:        totsz,
 		ShowHidden:     hidden,
 		ListOrder:      defaultOrdering,
 		Descending:     desc,

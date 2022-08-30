@@ -96,7 +96,6 @@ type Model struct {
 	// This section is for maintaining the `du` content
 	CurrentFolder Folder
 	Root          Folder
-	TotalSz       int64
 
 	// other options
 	ListOrder      Order
@@ -236,7 +235,7 @@ func (m Model) formatFileItemTitle(file File) string {
 	prog.Width = 11
 	n := 0.0
 	humanSize := file.HumanSize
-	n = float64(file.Size) / float64(m.TotalSz)
+	n = float64(file.Size) / float64(m.Root.Size)
 	graph := prog.ViewAs(n)
 
 	// setting `F` here
@@ -255,8 +254,8 @@ func (m Model) formatFolderItemTitle(file Folder) string {
 	prog.Width = 11
 	n := 0.0
 	humanSize := file.HumanSize
-	n = 0.                     //float64(m.DirSz[file.HighDir+"/"+file.Name]) / float64(m.TotalSz)
-	humanSize = file.HumanSize //PrettyPrintSize(m.DirSz[file.HighDir+"/"+file.Name])
+	n = float64(file.Size) / float64(m.Root.Size)
+	humanSize = file.HumanSize
 	graph := prog.ViewAs(n)
 
 	// setting `F` here
@@ -276,7 +275,7 @@ func NewModel(m Model) Model {
 	delegate := newItemDelegate(delegateKeys)
 	delegate.ShowDescription = false
 	currentFiles := list.New(items, delegate, 0, 0)
-	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.TotalSz), m.CurrentFolder.Path)
+	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.Root.Size), m.CurrentFolder.Path)
 	currentFiles.Title = title
 	currentFiles.Styles.Title = titleStyle
 	currentFiles.AdditionalFullHelpKeys = func() []key.Binding {
