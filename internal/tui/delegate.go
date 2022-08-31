@@ -15,8 +15,10 @@ func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 
 	d.UpdateFunc = func(msg tea.Msg, m *list.Model) tea.Cmd {
 		var title string
+		var bck *Model
 
 		if i, ok := m.SelectedItem().(item); ok {
+			bck = i.Bck()
 			title = i.Title()
 		} else {
 			return nil
@@ -27,7 +29,13 @@ func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 			switch {
 			case key.Matches(msg, keys.choose):
 				choice := strings.Split(title, " ")
-				return m.NewStatusMessage(statusMessageStyle("You chose " + choice[len(choice)-1]))
+				for _, folder := range bck.CurrentFolder.Folders {
+					if strings.Contains(title, folder.Name) {
+						bck.CurrentFolder = folder
+						return m.NewStatusMessage(statusMessageStyle("You chose " + choice[len(choice)-1]))
+					}
+				}
+				return m.NewStatusMessage(statusMessageStyle("You chose " + bck.CurrentFolder.Name))
 
 			case key.Matches(msg, keys.remove):
 				index := m.Index()

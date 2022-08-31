@@ -33,6 +33,24 @@ const (
 	ModTime
 )
 
+type Model struct {
+	// This section is for maintaining the `du` content
+	CurrentFolder Folder
+	Root          Folder
+
+	// other options
+	ListOrder      Order
+	Descending     bool
+	ShowHidden     bool
+	DirectoryFirst bool
+
+	// the rest is for actually maintaining the TUI display
+	list         list.Model
+	keys         *listKeyMap
+	delegateKeys *delegateKeyMap
+	Version      string
+}
+
 func (o Order) String() string {
 	switch o {
 	case Name:
@@ -48,10 +66,12 @@ func (o Order) String() string {
 type item struct {
 	title       string
 	description string
+	bck         *Model
 }
 
 func (i item) Title() string       { return i.title }
 func (i item) Description() string { return i.description }
+func (i item) Bck() *Model         { return i.bck }
 func (i item) FilterValue() string { return i.title }
 
 type listKeyMap struct {
@@ -92,24 +112,6 @@ func newListKeyMap() *listKeyMap {
 	}
 }
 
-type Model struct {
-	// This section is for maintaining the `du` content
-	CurrentFolder Folder
-	Root          Folder
-
-	// other options
-	ListOrder      Order
-	Descending     bool
-	ShowHidden     bool
-	DirectoryFirst bool
-
-	// the rest is for actually maintaining the TUI display
-	list         list.Model
-	keys         *listKeyMap
-	delegateKeys *delegateKeyMap
-	Version      string
-}
-
 func (m Model) updateCurrentFiles(folder Folder) []list.Item {
 	if m.DirectoryFirst {
 		/*switch m.ListOrder {
@@ -124,12 +126,12 @@ func (m Model) updateCurrentFiles(folder Folder) []list.Item {
 
 		for i := 0; i < folderCount; i++ {
 			title := m.formatFolderItemTitle(m.CurrentFolder.Folders[i])
-			items[i] = item{title: title}
+			items[i] = item{title: title, bck: &m}
 		}
 		j := 0
 		for i := folderCount; i < totalCount; i++ {
 			title := m.formatFileItemTitle(m.CurrentFolder.Files[j])
-			items[i] = item{title: title}
+			items[i] = item{title: title, bck: &m}
 			j++
 		}
 		return items
