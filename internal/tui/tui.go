@@ -24,6 +24,14 @@ var (
 				Render
 )
 
+type listMsg bool
+
+func updateList() tea.Cmd {
+	return func() tea.Msg {
+		return listMsg(true)
+	}
+}
+
 type Order int64
 
 const (
@@ -136,7 +144,8 @@ func (m Model) updateCurrentFiles(folder Folder) []list.Item {
 		}
 		return items
 	} else {
-		items := make([]list.Item, 0)
+		items := make([]list.Item, 1)
+		items[0] = item{title: "test", bck: &m}
 		return items
 	}
 	// TODO(david): add filter checks here...
@@ -343,6 +352,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.delegateKeys.remove.SetEnabled(true)
 			return m, nil
 		}
+
+	case listMsg:
+		//
 	}
 
 	newListModel, cmd := m.list.Update(msg)

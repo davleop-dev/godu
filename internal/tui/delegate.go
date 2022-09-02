@@ -28,14 +28,14 @@ func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 		case tea.KeyMsg:
 			switch {
 			case key.Matches(msg, keys.choose):
-				choice := strings.Split(title, " ")
+				//choice := strings.Split(title, " ")
 				for _, folder := range bck.CurrentFolder.Folders {
 					if strings.Contains(title, folder.Name) {
 						bck.CurrentFolder = folder
-						return m.NewStatusMessage(statusMessageStyle("You chose " + choice[len(choice)-1]))
+						m.SetItems(bck.updateCurrentFiles(bck.CurrentFolder))
+						return updateList()
 					}
 				}
-				return m.NewStatusMessage(statusMessageStyle("You chose " + bck.CurrentFolder.Name))
 
 			case key.Matches(msg, keys.remove):
 				index := m.Index()
