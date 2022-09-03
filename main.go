@@ -351,9 +351,12 @@ func main() {
 		}
 	*/
 
+	startingStack := make([]du.Folder, 0)
+
 	initialModel := tui.Model{
 		CurrentFolder:  root,
 		Root:           root,
+		Stack:          startingStack,
 		ShowHidden:     hidden,
 		ListOrder:      defaultOrdering,
 		Descending:     desc,

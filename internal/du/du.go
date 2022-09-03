@@ -110,7 +110,7 @@ func CreateFileTree(dir string) (root Folder, err error) {
 
 	root = Folder{
 		Path:      dir,
-		HighDir:   dir,
+		HighDir:   "",
 		Name:      info.Name(),
 		Size:      size,
 		HumanSize: PrettyPrintSize(size),

@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"fmt"
+	. "internal/du"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -28,13 +30,24 @@ func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 		case tea.KeyMsg:
 			switch {
 			case key.Matches(msg, keys.choose):
-				//choice := strings.Split(title, " ")
 				if title == "                          .." {
-					// GO BACKWARDS IDIOT
+					stackLength := len(bck.Stack)
+					if stackLength > 0 {
+						n := stackLength - 1
+						bck.CurrentFolder = bck.Stack[n]
+						bck.Stack = bck.Stack[:n]
+						m.SetItems(bck.updateCurrentFiles(bck.CurrentFolder))
+					}
+					newTitle := fmt.Sprintf("godu-%s | Total: %s | %s", bck.Version, PrettyPrintSize(bck.CurrentFolder.Size), bck.CurrentFolder.Path)
+					m.Title = newTitle
 				} else {
 					for _, folder := range bck.CurrentFolder.Folders {
 						if strings.Contains(title, folder.Name) {
+							bck.Stack = append(bck.Stack, bck.CurrentFolder)
 							bck.CurrentFolder = folder
+							newTitle := fmt.Sprintf("godu-%s | Total: %s | %s", bck.Version, PrettyPrintSize(bck.CurrentFolder.Size), bck.CurrentFolder.Path)
+							m.Title = newTitle
+
 							m.SetItems(bck.updateCurrentFiles(bck.CurrentFolder))
 							return updateList()
 						}

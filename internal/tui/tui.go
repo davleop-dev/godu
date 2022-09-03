@@ -46,6 +46,7 @@ type Model struct {
 	// This section is for maintaining the `du` content
 	CurrentFolder Folder
 	Root          Folder
+	Stack         []Folder
 
 	// other options
 	ListOrder      Order
@@ -147,7 +148,7 @@ func (m Model) updateCurrentFiles(folder Folder) []list.Item {
 		if !cmp.Equal(m.CurrentFolder, m.Root) {
 			//"%-2s %8s %-9s   %s/"
 			tmp := make([]list.Item, 1)
-			tmp[0] = item{title: "                          .."}
+			tmp[0] = item{title: "                          ..", bck: &m}
 			items = append(tmp, items...)
 		}
 		return items
@@ -294,7 +295,7 @@ func NewModel(m Model) Model {
 	delegate := newItemDelegate(delegateKeys)
 	delegate.ShowDescription = false
 	currentFiles := list.New(items, delegate, 0, 0)
-	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.Root.Size), m.CurrentFolder.Path)
+	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.CurrentFolder.Size), m.CurrentFolder.Path)
 	currentFiles.Title = title
 	currentFiles.Styles.Title = titleStyle
 	currentFiles.AdditionalFullHelpKeys = func() []key.Binding {
