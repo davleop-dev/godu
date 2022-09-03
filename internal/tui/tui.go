@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/google/go-cmp/cmp"
 )
 
 var (
@@ -130,6 +131,7 @@ func (m Model) updateCurrentFiles(folder Folder) []list.Item {
 		fileCount := len(folder.Files)
 		folderCount := len(folder.Folders)
 		totalCount := fileCount + folderCount
+
 		items := make([]list.Item, totalCount)
 
 		for i := 0; i < folderCount; i++ {
@@ -141,6 +143,12 @@ func (m Model) updateCurrentFiles(folder Folder) []list.Item {
 			title := m.formatFileItemTitle(m.CurrentFolder.Files[j])
 			items[i] = item{title: title, bck: &m}
 			j++
+		}
+		if !cmp.Equal(m.CurrentFolder, m.Root) {
+			//"%-2s %8s %-9s   %s/"
+			tmp := make([]list.Item, 1)
+			tmp[0] = item{title: "                          .."}
+			items = append(tmp, items...)
 		}
 		return items
 	} else {
@@ -354,7 +362,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case listMsg:
-		//
+		// do nothing!
 	}
 
 	newListModel, cmd := m.list.Update(msg)

@@ -29,11 +29,15 @@ func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 			switch {
 			case key.Matches(msg, keys.choose):
 				//choice := strings.Split(title, " ")
-				for _, folder := range bck.CurrentFolder.Folders {
-					if strings.Contains(title, folder.Name) {
-						bck.CurrentFolder = folder
-						m.SetItems(bck.updateCurrentFiles(bck.CurrentFolder))
-						return updateList()
+				if title == "                          .." {
+					// GO BACKWARDS IDIOT
+				} else {
+					for _, folder := range bck.CurrentFolder.Folders {
+						if strings.Contains(title, folder.Name) {
+							bck.CurrentFolder = folder
+							m.SetItems(bck.updateCurrentFiles(bck.CurrentFolder))
+							return updateList()
+						}
 					}
 				}
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -319,12 +318,12 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	// Marshal it!
+	/* Marshal it!
 	jsn, err := json.MarshalIndent(root, "", " ")
 	if err != nil {
 		return
 	}
-	fmt.Println(string(jsn))
+	fmt.Println(string(jsn))*/
 
 	/*files, err := du.ListFilesRecursivelyInParallel(dir)
 	if err != nil {
