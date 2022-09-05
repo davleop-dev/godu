@@ -7,9 +7,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	du "internal/du"
-	tui "internal/tui"
+	"internal/tui"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -64,7 +65,7 @@ var rootCmd = &cobra.Command{
 		if len(args) == 1 {
 			dir, _ = filepath.Abs(args[0])
 		} else {
-			dir = "."
+			dir, _ = filepath.Abs(".")
 		}
 		f := inputFile
 		if f != "" {
@@ -224,6 +225,28 @@ func version() {
 	fmt.Println(godu_version)
 }
 
+func crappyCalculation(files []du.File, dir string) (map[string]int64, int64) {
+	drsz := make(map[string]int64)
+	totalSz := int64(0)
+
+	for _, file := range files {
+		totalSz += file.Size
+		if file.Name == dir {
+			continue
+		}
+		if len(drsz) == 0 {
+			drsz[file.HighDir] += file.Size
+		}
+		for k, _ := range drsz {
+			if strings.HasPrefix(file.HighDir, k) {
+				drsz[file.HighDir] += file.Size
+			}
+		}
+	}
+
+	return drsz, totalSz
+}
+
 func init() {
 	flags := rootCmd.Flags()
 
@@ -287,26 +310,58 @@ func main() {
 
 	hidden := true
 	defaultOrdering := tui.Size
-	directoryFirst := false
+	directoryFirst := true
 	desc := true
 
-	files, err := du.ListFilesRecursivelyInParallel(dir)
+	root, err := du.CreateFileTree(dir)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	drsz, totsz := crappyCalculation(files)
+	/* Marshal it!
+	jsn, err := json.MarshalIndent(root, "", " ")
+	if err != nil {
+		return
+	}
+	fmt.Println(string(jsn))*/
+
+	/*files, err := du.ListFilesRecursivelyInParallel(dir)
+	if err != nil {
+		log.Fatalln(err)
+	}*/
+
+	/*
+		type Model struct {
+			// This section is for maintaining the `du` content
+			CurrentFolder Folder
+			Root          Folder
+			TotalSz       int64
+
+			// other options
+			ListOrder      Order
+			Descending     bool
+			ShowHidden     bool
+			DirectoryFirst bool
+
+			// the rest is for actually maintaining the TUI display
+			list         list.Model
+			keys         *listKeyMap
+			delegateKeys *delegateKeyMap
+			Version      string
+		}
+	*/
+
+	startingStack := make([]du.Folder, 0)
 
 	initialModel := tui.Model{
-		CurrentDirectory: dir,
-		ShowHidden:       hidden,
-		ListOrder:        defaultOrdering,
-		Descending:       desc,
-		DirectoryFirst:   directoryFirst,
-		Files:            files,
-		DirSz:            drsz,
-		TotalSz:          totsz,
-		Version:          godu_version,
+		CurrentFolder:  root,
+		Root:           root,
+		Stack:          startingStack,
+		ShowHidden:     hidden,
+		ListOrder:      defaultOrdering,
+		Descending:     desc,
+		DirectoryFirst: directoryFirst,
+		Version:        godu_version,
 	}
 
 	p := tea.NewProgram(tui.NewModel(initialModel), tea.WithAltScreen())

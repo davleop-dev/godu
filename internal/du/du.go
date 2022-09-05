@@ -7,11 +7,9 @@ import (
 	"path"
 	"path/filepath"
 	"time"
-
-	"github.com/mitchellh/hashstructure"
 )
 
-var ComputeHashes = true
+var ComputeHashes = false
 
 // File is the object that contains the info and path of the file
 type File struct {
@@ -20,11 +18,24 @@ type File struct {
 	Name         string
 	Size         int64
 	ApparentSize int64
-	HumanSize    string // bytesize.ByteSize
+	HumanSize    string
 	Mode         os.FileMode
 	ModTime      time.Time
-	IsDir        bool
 	Hash         uint64 `hash:"ignore"`
+}
+
+type Folder struct {
+	Path         string
+	HighDir      string
+	Name         string
+	Size         int64
+	ApparentSize int64
+	HumanSize    string
+	Mode         os.FileMode
+	ModTime      time.Time
+	Hash         uint64 `hash:"ignore"`
+	Files        []File
+	Folders      []Folder
 }
 
 type NameSorter []File
@@ -54,8 +65,7 @@ func PrettyPrintSize(size int64) string {
 
 // TODO(david): properly handle errors
 
-// ListFilesRecursivelyInParallel uses goroutines to list all the files
-func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
+func CreateFileTree(dir string) (root Folder, err error) {
 	dir = filepath.Clean(dir)
 	f, err := os.Open(dir)
 	if err != nil {
@@ -65,84 +75,108 @@ func ListFilesRecursivelyInParallel(dir string) (files []File, err error) {
 	if err != nil {
 		return
 	}
-	files = []File{
-		{
-			Path:      dir,
-			HighDir:   dir,
-			Name:      dir,
-			Size:      info.Size(),
-			HumanSize: PrettyPrintSize(info.Size()),
-			Mode:      info.Mode(),
-			ModTime:   info.ModTime(),
-			IsDir:     info.IsDir(),
-		},
+
+	// Prestep things before creating struct
+	size := info.Size()
+	fls, err := ioutil.ReadDir(dir)
+	files := make([]File, 0)
+	folders := make([]Folder, 0)
+	if err != nil {
+		return
+	}
+	for _, f := range fls {
+		if f.IsDir() {
+			folders = append(folders, createFileTreeHelper(path.Join(dir, f.Name())))
+		} else {
+			files = append(files, File{
+				Path:      f.Name(),
+				HighDir:   dir,
+				Name:      f.Name(),
+				Size:      f.Size(),
+				HumanSize: PrettyPrintSize(f.Size()),
+				Mode:      f.Mode(),
+				ModTime:   f.ModTime(),
+			})
+		}
+	}
+
+	// Maybe not count directory as 4K?
+	for _, file := range files {
+		size += file.Size
+	}
+	for _, folder := range folders {
+		size += folder.Size
+	}
+
+	root = Folder{
+		Path:      dir,
+		HighDir:   "",
+		Name:      info.Name(),
+		Size:      size,
+		HumanSize: PrettyPrintSize(size),
+		Mode:      info.Mode(),
+		ModTime:   info.ModTime(),
+		Files:     files,
+		Folders:   folders,
 	}
 	f.Close()
-
-	if ComputeHashes {
-		h, err := hashstructure.Hash(files[0], nil)
-		if err != nil {
-			panic(err)
-		}
-		files[0].Hash = h
-	}
-
-	fileChan := make(chan File)
-	startedDirectories := make(chan bool)
-	go listFilesInParallel(dir, startedDirectories, fileChan)
-
-	runningCount := 1
-	for {
-		select {
-		case file := <-fileChan:
-			files = append(files, file)
-		case newDir := <-startedDirectories:
-			if newDir {
-				runningCount++
-			} else {
-				runningCount--
-			}
-		default:
-		}
-		if runningCount == 0 {
-			break
-		}
-	}
 	return
 }
 
-func listFilesInParallel(dir string, startedDirectories chan bool, fileChan chan File) {
-	files, err := ioutil.ReadDir(dir)
+func createFileTreeHelper(dir string) (root Folder) {
+	dir = filepath.Clean(dir)
+	f, err := os.Open(dir)
 	if err != nil {
-		panic(err)
+		return
 	}
-	// maybe create chan here and calculate size here
-	//apparentSize := int64(0)
-	for _, f := range files {
-		//apparentSize += f.Size()
-		fileStruct := File{
-			Path:      path.Join(dir, f.Name()),
-			HighDir:   dir,
-			Name:      f.Name(),
-			Size:      f.Size(),
-			HumanSize: PrettyPrintSize(f.Size()),
-			Mode:      f.Mode(),
-			ModTime:   f.ModTime(),
-			IsDir:     f.IsDir(),
-		}
-		if ComputeHashes {
-			h, err := hashstructure.Hash(fileStruct, nil)
-			if err != nil {
-				panic(err)
-			}
-			fileStruct.Hash = h
-		}
-		fileChan <- fileStruct
+	info, err := f.Stat()
+	if err != nil {
+		return
+	}
+
+	// Prestep things before creating struct
+	size := info.Size()
+	fls, err := ioutil.ReadDir(dir)
+	files := make([]File, 0)
+	folders := make([]Folder, 0)
+	if err != nil {
+		return
+	}
+	for _, f := range fls {
 		if f.IsDir() {
-			startedDirectories <- true
-			go listFilesInParallel(path.Join(dir, f.Name()), startedDirectories, fileChan)
+			folders = append(folders, createFileTreeHelper(path.Join(dir, f.Name())))
+		} else {
+			files = append(files, File{
+				Path:      f.Name(),
+				HighDir:   dir,
+				Name:      f.Name(),
+				Size:      f.Size(),
+				HumanSize: PrettyPrintSize(f.Size()),
+				Mode:      f.Mode(),
+				ModTime:   f.ModTime(),
+			})
 		}
 	}
-	startedDirectories <- false
+
+	// Maybe not count directory as 4K?
+	for _, file := range files {
+		size += file.Size
+	}
+	for _, folder := range folders {
+		size += folder.Size
+	}
+
+	root = Folder{
+		Path:      dir,
+		HighDir:   dir,
+		Name:      info.Name(),
+		Size:      size,
+		HumanSize: PrettyPrintSize(size),
+		Mode:      info.Mode(),
+		ModTime:   info.ModTime(),
+		Files:     files,
+		Folders:   folders,
+	}
+	f.Close()
 	return
 }

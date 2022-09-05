@@ -31,6 +31,8 @@ require (
 	golang.org/x/term v0.0.0-20220526004731-065cf7ba2467 // indirect
 )
 
+require github.com/google/go-cmp v0.5.8 // indirect
+
 replace internal/tui => ./internal/tui
 
 replace internal/du => ./internal/du

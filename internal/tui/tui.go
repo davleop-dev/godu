@@ -3,14 +3,13 @@ package tui
 import (
 	"fmt"
 	. "internal/du"
-	"sort"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/google/go-cmp/cmp"
 )
 
 var (
@@ -26,6 +25,14 @@ var (
 				Render
 )
 
+type listMsg bool
+
+func updateList() tea.Cmd {
+	return func() tea.Msg {
+		return listMsg(true)
+	}
+}
+
 type Order int64
 
 const (
@@ -34,6 +41,25 @@ const (
 	Size
 	ModTime
 )
+
+type Model struct {
+	// This section is for maintaining the `du` content
+	CurrentFolder Folder
+	Root          Folder
+	Stack         []Folder
+
+	// other options
+	ListOrder      Order
+	Descending     bool
+	ShowHidden     bool
+	DirectoryFirst bool
+
+	// the rest is for actually maintaining the TUI display
+	list         list.Model
+	keys         *listKeyMap
+	delegateKeys *delegateKeyMap
+	Version      string
+}
 
 func (o Order) String() string {
 	switch o {
@@ -50,10 +76,12 @@ func (o Order) String() string {
 type item struct {
 	title       string
 	description string
+	bck         *Model
 }
 
 func (i item) Title() string       { return i.title }
 func (i item) Description() string { return i.description }
+func (i item) Bck() *Model         { return i.bck }
 func (i item) FilterValue() string { return i.title }
 
 type listKeyMap struct {
@@ -94,31 +122,43 @@ func newListKeyMap() *listKeyMap {
 	}
 }
 
-type Model struct {
-	// This section is for maintaining the `du` content
-	CurrentDirectory   string
-	Files              []File
-	currentDirectories []File
-	currentFiles       []File
-	DirSz              map[string]int64
-	TotalSz            int64
+func (m Model) updateCurrentFiles(folder Folder) []list.Item {
+	if m.DirectoryFirst {
+		/*switch m.ListOrder {
+		case Name:
+		case Size:
+		case ModTime:
+		}*/
+		fileCount := len(folder.Files)
+		folderCount := len(folder.Folders)
+		totalCount := fileCount + folderCount
 
-	// other options
-	ListOrder      Order
-	Descending     bool
-	ShowHidden     bool
-	DirectoryFirst bool
+		items := make([]list.Item, totalCount)
 
-	// the rest is for actually maintaining the TUI display
-	list         list.Model
-	keys         *listKeyMap
-	delegateKeys *delegateKeyMap
-	Version      string
-}
-
-func (m Model) updateCurrentFiles(newDir string) []list.Item {
+		for i := 0; i < folderCount; i++ {
+			title := m.formatFolderItemTitle(m.CurrentFolder.Folders[i])
+			items[i] = item{title: title, bck: &m}
+		}
+		j := 0
+		for i := folderCount; i < totalCount; i++ {
+			title := m.formatFileItemTitle(m.CurrentFolder.Files[j])
+			items[i] = item{title: title, bck: &m}
+			j++
+		}
+		if !cmp.Equal(m.CurrentFolder, m.Root) {
+			//"%-2s %8s %-9s   %s/"
+			tmp := make([]list.Item, 1)
+			tmp[0] = item{title: "                          ..", bck: &m}
+			items = append(tmp, items...)
+		}
+		return items
+	} else {
+		items := make([]list.Item, 1)
+		items[0] = item{title: "test", bck: &m}
+		return items
+	}
 	// TODO(david): add filter checks here...
-	for _, file := range m.Files {
+	/*for _, file := range m.Files {
 		if !m.ShowHidden && strings.HasPrefix(file.Name, ".") {
 			continue
 		}
@@ -203,11 +243,11 @@ func (m Model) updateCurrentFiles(newDir string) []list.Item {
 			}
 			return items
 		}
-	}
+	}*/
 
 }
 
-func (m Model) formatItemTitle(file File) string {
+func (m Model) formatFileItemTitle(file File) string {
 	// this should formatted eventually as so:
 	// F SSS.S UUU [BBBBBBBBB] filename -->
 	// TODO(david): calculate sizes later
@@ -215,12 +255,7 @@ func (m Model) formatItemTitle(file File) string {
 	prog.Width = 11
 	n := 0.0
 	humanSize := file.HumanSize
-	if file.IsDir {
-		n = float64(m.DirSz[file.HighDir]) / float64(m.TotalSz)
-		humanSize = PrettyPrintSize(m.DirSz[file.HighDir])
-	} else {
-		n = float64(file.Size) / float64(m.TotalSz)
-	}
+	n = float64(file.Size) / float64(m.Root.Size)
 	graph := prog.ViewAs(n)
 
 	// setting `F` here
@@ -228,26 +263,39 @@ func (m Model) formatItemTitle(file File) string {
 	if !file.Mode.IsRegular() {
 		mode = "@"
 	}
-	if file.IsDir {
-		mode = " "
-	}
-
 	return fmt.Sprintf("%-2s %8s %-9s   %s", mode, humanSize, graph, file.Name)
 }
 
+func (m Model) formatFolderItemTitle(file Folder) string {
+	// this should formatted eventually as so:
+	// F SSS.S UUU [BBBBBBBBB] filename -->
+	// TODO(david): calculate sizes later
+	prog := progress.New(progress.WithScaledGradient("#00FF00", "#FF0000"))
+	prog.Width = 11
+	n := 0.0
+	humanSize := file.HumanSize
+	n = float64(file.Size) / float64(m.Root.Size)
+	humanSize = file.HumanSize
+	graph := prog.ViewAs(n)
+
+	// setting `F` here
+	mode := " "
+
+	return fmt.Sprintf("%-2s %8s %-9s   %s/", mode, humanSize, graph, file.Name)
+}
 func NewModel(m Model) Model {
 	var (
 		delegateKeys = newDelegateKeyMap()
 		listKeys     = newListKeyMap()
 	)
 
-	items := m.updateCurrentFiles(m.CurrentDirectory)
+	items := m.updateCurrentFiles(m.CurrentFolder)
 
 	// Setup list
 	delegate := newItemDelegate(delegateKeys)
 	delegate.ShowDescription = false
 	currentFiles := list.New(items, delegate, 0, 0)
-	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.TotalSz), m.CurrentDirectory)
+	title := fmt.Sprintf("godu-%s | Total: %s | %s", m.Version, PrettyPrintSize(m.CurrentFolder.Size), m.CurrentFolder.Path)
 	currentFiles.Title = title
 	currentFiles.Styles.Title = titleStyle
 	currentFiles.AdditionalFullHelpKeys = func() []key.Binding {
@@ -311,8 +359,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.insertItem):
 			m.delegateKeys.remove.SetEnabled(true)
-			return m, nil // tea.Batch()
+			return m, nil
 		}
+
+	case listMsg:
+		// do nothing!
 	}
 
 	newListModel, cmd := m.list.Update(msg)
