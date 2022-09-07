@@ -20,7 +20,7 @@ To quickly go through the intentions and thoughts here:
 
 ### internal
 #### du
-Conaints code related to reading, writing, and deleting files.
+Contains code related to reading, writing, and deleting files.
 
 #### tui
 Relevant code related to the TUI. Anything visually shown to the user should be placed in this directory.
